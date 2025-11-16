@@ -1,0 +1,28 @@
+[project]
+name = "geoparticle"
+version = "1.0"
+description = "geoparticle 1.0"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+authors = [{ name = "Jasmine969", email = "hzhu1@stu.suda.edu.cn"}]
+maintainers = [{ name = "Jasmine969", email = "hzhu1@stu.suda.edu.cn"}]
+keywords = ["Geometry", "Particle", "Smoothed Particle Hydrodynamics", "SPH"]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib"
+]
+
+[project.urls]
+Homepage = "https://github.com/Jasmine969/GeomParticle"
+
+[build-system]
+requires = ["setuptools >= 68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["geoparticle*"]
+[tool.setuptools.package-dir]
+"" = "."

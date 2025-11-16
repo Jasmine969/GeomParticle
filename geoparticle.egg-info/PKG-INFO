@@ -1,3 +1,20 @@
+Metadata-Version: 2.4
+Name: geoparticle
+Version: 1.0
+Summary: geoparticle 1.0
+Author-email: Jasmine969 <hzhu1@stu.suda.edu.cn>
+Maintainer-email: Jasmine969 <hzhu1@stu.suda.edu.cn>
+License: Apache-2.0
+Project-URL: Homepage, https://github.com/Jasmine969/GeomParticle
+Keywords: Geometry,Particle,Smoothed Particle Hydrodynamics,SPH
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Dynamic: license-file
+
 # geoparticle
 This is a Python programme for particle-based geometry construction. I use it for Smoothed Particle Hydrodynamics (SPH) simulation, especially LAMMPS-SPH and LAMMPS-RHEO packages.
 

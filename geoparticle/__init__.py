@@ -1,8 +1,10 @@
-from geometry.base import Geometry
-from geometry.ops import *
-from geometry.shapes import *
-from geometry.utils import n_per_ring
+from .base import Geometry
+from .ops import *
+from .shapes import *
+from .utils import n_per_ring
 
+__version__ = '0.1.0'
+__author__ = 'Jasmine969'
 __all__ = [
     'Geometry',
     # Operations
