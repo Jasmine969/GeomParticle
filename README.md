@@ -1,5 +1,25 @@
 # geoparticle
-This is a Python programme for particle-based geometry construction. I use it for Smoothed Particle Hydrodynamics (SPH) simulation, especially LAMMPS-SPH and LAMMPS-RHEO packages.
+*A Python package for geometry construction in particle-based simulation.*
+
+I mainly use this package for geometry construction in LAMMPS, with some examples provided in the repository; of course, it can also be used for other software.
+
+## Installation
+
+### Installing from pypi
+
+```bash
+pip install geoparticle
+```
+
+### Installing from the source code
+
+Download and enter the source code directory, then
+
+```
+pip install .
+```
+
+## Background
 
 Particles of specified geometries are typically created by the `lattice` command in LAMMPS, which can lead to rough surfaces when the particle spacing is not small enough. However, too small spacing can result in too many particles and thus increase the computational cost.
 
@@ -7,26 +27,43 @@ Particles of specified geometries are typically created by the `lattice` command
 
 The case is the same when one creates atoms based on an external STL file (an example STL file exported by COMSOL is shown below):
 
-![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20240402204014.png)
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117123120.png)
 
-To resolve this problem, I developed this package for easy construction of geometries where smooth surfaces are required. Miscellaneous geometries made up of particles with a spacing of `dl`, including 1D geometries (lines and curves):
+## Features
 
-<img width="1274" height="687" alt="image" src="https://github.com/user-attachments/assets/d90b36a4-730e-4bf9-bce4-b0c0897b3cc8" />
+To resolve this problem, I developed this package for easy construction of geometries where smooth surfaces are required. Miscellaneous geometries are provided, including 1D geometries (lines and curves):
+
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117124159.png)
 
 2D geometries (rectangles and circles):
 
-<img width="1223" height="671" alt="image" src="https://github.com/user-attachments/assets/6d289a22-3ad0-43bc-967b-ab617543c2d3" />
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117124218.png)
 
 3D geometries (blocks, cylinders, tori, and spheres):
 
-<img width="1020" height="1040" alt="image" src="https://github.com/user-attachments/assets/4d658233-dce4-4962-84d2-5a810cab58c4" />
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117124231.png)
 
 all of which can be surface, thick shells, or filled bodies.
 
 Diverse operations are also provided, including translation, mirror, rotation, stack, clipping, union, intersection, and subtraction.
 
-<img width="1077" height="1019" alt="image" src="https://github.com/user-attachments/assets/f274ebc7-2031-4a30-9d5b-25ee14092e34" />
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117124246.png)
 
 Some utility functions are also provided.
 
-Enjoy your journey with geoparticle.
+## Quick start
+
+`examples/gallery.py` provided detailed scripts to yield the geometries above.
+
+Two more examples are given to shown how to couple geoparticle with LAMMPS. The first example is the 2D gas-liquid dam break, while the second is the 3D human duodenum whose particles are connected with bonds and angles (bonded particle method) to model the continuum.
+
+![](https://fengimages-1310812903.cos.ap-shanghai.myqcloud.com/20251117163138.png)
+
+## Limitations
+
+The particle spacings may be not exactly as specified in order to create a smooth surface.
+
+Resultant geometries of boolean operations can have more particles than expected in some cases, because
+
+- For intersection and subtraction, only particles with distances smaller than `rmax` will be identified the same. Users should align particles of different geometries to get the expected results.
+- For union, particles of all the given geometries will be collected to yield the union. Users should ensure no particles are overlapped.

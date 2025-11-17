@@ -2,8 +2,6 @@ from warnings import warn
 from .utils import *
 from .ops import *
 
-filter_guide = " Filter this warning by filterwarnings('ignore',message='.*quantized.*')"
-
 
 class Line(Geometry):
     """1D line aligned to a principal axis, then reoriented."""
@@ -21,11 +19,11 @@ class Line(Geometry):
         super().__init__(name=name or f'Line {self.get_counter()}', dimension=2)
         ys = _arange0_quantized(length, dl)
         self.length = float(ys[-1])
-        if self.length != length:
-            warn(f"{self.name}: length quantized from {length} to {self.length} (dl={dl})." + filter_guide)
+        _check_size_change(length, self.length, self.name, 'length')
         xs = np.zeros_like(ys)
         zs = np.zeros_like(ys)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=direction))
+        self.check_overlap()
 
 
 class SymmLines(Geometry):
@@ -47,6 +45,7 @@ class SymmLines(Geometry):
         lower = upper.mirror('YOZ', 0)
         me = Union((upper, lower))
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=direction))
+        self.check_overlap()
 
 
 class Arc(Geometry):
@@ -72,6 +71,7 @@ class Arc(Geometry):
         xs = r * np.sin(phis)
         ys = np.full_like(xs, plane_pos)
         self.set_coord(*_transform_coordinate(xs, ys, zs, plane=plane))
+        self.check_overlap()
 
 
 class Torus2D(Geometry):
@@ -94,6 +94,7 @@ class Torus2D(Geometry):
         outer = Arc(r_t + r_ring, phi_range, 0.0, 'XOZ', dl)
         me = Union((inner, outer))
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, plane=plane))
+        self.check_overlap()
 
 
 class Circle(Arc):
@@ -132,11 +133,9 @@ class Rectangle(Geometry):
         super().__init__(name=name or f'Rectangle {self.get_counter()}', dimension=2)
         z_bot = _arange0_quantized(length, dl)
         x_left = _arange0_quantized(width - dl, dl) + dl
-        length_q, width_q = float(z_bot[-1]), float(x_left[-1])
-        self.length, self.width = length_q, width_q
-        if length_q != length or width_q != width:
-            warn(f"{self.name}: size quantized to dl grid (dl={dl}):"
-                 f" length {length} -> {length_q}, width {width} -> {width_q}" + filter_guide)
+        self.length, self.width = float(z_bot[-1]), float(x_left[-1])
+        _check_size_change(length, self.length, self.name, 'length')
+        _check_size_change(width, self.width, self.name, 'width')
         # Build boundary without duplicating corners
         x_left = x_left[:-1]
         z_left = np.full_like(x_left, 0)
@@ -149,6 +148,7 @@ class Rectangle(Geometry):
         xs = np.r_[x_bot, x_left, x_top, x_right]
         ys = np.full_like(xs, plane_pos)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
+        self.check_overlap()
 
 
 class ThickRectangle(Geometry):
@@ -177,6 +177,7 @@ class ThickRectangle(Geometry):
             layers.append(layer)
         me = Union(layers)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.check_overlap()
 
 
 class FilledRectangle(Geometry):
@@ -197,15 +198,14 @@ class FilledRectangle(Geometry):
         super().__init__(name=name or f'FilledRectangle {self.get_counter()}', dimension=2)
         z = _arange0_quantized(length, dl)
         x = _arange0_quantized(width, dl)
-        Lq, Wq = float(z[-1]), float(x[-1])
-        if Lq != length or Wq != width:
-            warn(f"{self.name}: size quantized to dl grid (dl={dl}):"
-                 f" length {length} -> {Lq}, width {width} -> {Wq}" + filter_guide)
+        self.length, self.width = float(z[-1]), float(x[-1])
+        _check_size_change(length, self.length, self.name, 'length')
+        _check_size_change(width, self.width, self.name, 'width')
         Z, X = np.meshgrid(z, x, indexing='xy')
         zs, xs = Z.ravel(), X.ravel()
         ys = np.full_like(xs, plane_pos, dtype=float)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
-        self.length, self.width = Lq, Wq
+        self.check_overlap()
 
 
 class ThickRing(Geometry):
@@ -235,11 +235,10 @@ class ThickRing(Geometry):
         self.dl = float(dl)
         n_inner = n_per_ring(r_in, self.dl) if r_in > 0 else 1
         if adjust_dl and r_in > 0:
-            self.dl = float(_spacing_ring(r_in, n_inner))
+            self.dl = float(spacing_ring(r_in, n_inner))
         n_radial = int(round((r_out - r_in) / self.dl))
         self.r_out = r_in + n_radial * self.dl
-        if abs(self.r_out - r_out) > 1e-6:
-            warn(f"{self.name}: outer radius quantized from {r_out} to {self.r_out} (dl={self.dl})" + filter_guide)
+        _check_size_change(r_out, self.r_out, self.name, 'r_out')
         rs = np.arange(0, n_radial + 1) * self.dl + r_in
         if equal_size_per_circle and r_in > 0:
             n_per_rings = np.full_like(rs, n_inner, dtype=int)
@@ -262,6 +261,7 @@ class ThickRing(Geometry):
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
         self.rs = rs
         self.n_per_rings = n_per_rings
+        self.check_overlap()
 
 
 class FilledCircle(ThickRing):
@@ -299,12 +299,11 @@ class Block(Geometry):
         super().__init__(name=name or f'Block {self.get_counter()}', dimension=3)
         layer = FilledRectangle(length, width, 0.0, 'z', dl)
         n_height = int(height / dl) + 1
-        realized_height = (n_height - 1) * dl
-        if realized_height != height:
-            warn(f"{self.name}: height quantized from {height} to {realized_height} (dl={dl})" + filter_guide)
-        self.height = realized_height
-        me = Stack(layer, 'z', n_height, dl)
+        self.height = (n_height - 1) * dl
+        _check_size_change(height, self.height, self.name, 'height')
+        me = Stack(layer, 'z', n_height, dl, dimension=3)
         self.set_coord(me.xs, me.ys, me.zs)
+        self.check_overlap()
 
 
 class ThickBlockWall(Geometry):
@@ -325,13 +324,14 @@ class ThickBlockWall(Geometry):
         super().__init__(name=name or f'ThickBlockWall {self.get_counter()}', dimension=3)
         side_layer = ThickRectangle(length, width, n_thick, 0.0, 'z', dl)
         n_height = int(height / dl) + 1
-        side = Stack(side_layer, 'z', n_height + n_thick, dl).shift(z=-(n_thick - 1) * dl)
+        side = Stack(side_layer, 'z', n_height + n_thick, dl, dimension=3).shift(z=-(n_thick - 1) * dl)
         lid_layer = FilledRectangle(length - 2 * dl, width - 2 * dl, 0.0, 'z', dl).shift(x=dl, y=dl)
-        lid_lower = Stack(lid_layer, 'z', -n_thick, dl)
+        lid_lower = Stack(lid_layer, 'z', -n_thick, dl, dimension=3)
         z_mid = (n_height - 1) * dl / 2
         lid_upper = lid_lower.mirror('XOY', z_mid)
         me = Union((side, lid_lower, lid_upper))
         self.set_coord(me.xs, me.ys, me.zs)
+        self.check_overlap()
 
 
 class CylinderSide(Geometry):
@@ -350,20 +350,19 @@ class CylinderSide(Geometry):
         """
         super().__init__(name=name or f'CylinderSide {self.get_counter()}', dimension=3)
         self.l_axis = float(l_axis)
+        self.r = float(r)
         self.radius = float(r)
         self.n_axis = int(self.l_axis / dl) + 1
         y = np.arange(0, self.n_axis) * dl
-        realized_l_axis = float(y[-1])
-        if realized_l_axis != self.l_axis:
-            warn(f"{self.name}: axis length quantized from {l_axis} to "
-                 f"{realized_l_axis} (dl={dl})" + filter_guide)
-        self.l_axis = realized_l_axis
+        self.l_axis = float(y[-1])
+        _check_size_change(l_axis, self.l_axis, self.name, 'l_axis')
         self.n_ring = int(n_per_ring(self.radius, dl))
         z_ring, x_ring = _ring_xy(self.n_ring, self.radius)
         zs = np.tile(z_ring, self.n_axis)
         xs = np.tile(x_ring, self.n_axis)
         ys = np.repeat(y, self.n_ring)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
+        self.check_overlap()
 
     @property
     def dl_in_ring(self) -> float:
@@ -373,7 +372,7 @@ class CylinderSide(Geometry):
         Returns:
             float: Spacing between points on the ring.
         """
-        return float(_spacing_ring(self.r, self.n_ring))
+        return float(spacing_ring(self.r, self.n_ring))
 
 
 class ThickCylinderSide(Geometry):
@@ -394,14 +393,13 @@ class ThickCylinderSide(Geometry):
         """
         super().__init__(name=name or f'ThickCylinderWall {self.get_counter()}', dimension=3)
         n_axis = int(l_axis / dl) + 1
-        realized_l_axis = (n_axis - 1) * dl
-        if realized_l_axis != l_axis:
-            warn(f"{self.name}: axis length quantized from {l_axis} to "
-                 f"{realized_l_axis} (dl={dl})" + filter_guide)
+        self.l_axis = (n_axis - 1) * dl
+        _check_size_change(l_axis, self.l_axis, self.name, 'l_axis')
         layer = ThickRing(r_out, r_in, dl)
-        me = Stack(layer, 'y', n_axis, dl)
+        me = Stack(layer, 'y', n_axis, dl, dimension=3)
         self.radius = np.sqrt(me.xs ** 2 + me.zs ** 2)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.check_overlap()
 
 
 class FilledCylinder(Geometry):
@@ -421,14 +419,12 @@ class FilledCylinder(Geometry):
         super().__init__(name=name or f'FilledCylinder {self.get_counter()}', dimension=3)
         radial_layer = FilledCircle(r, dl, 'y')
         n_axis = int(l_axis / dl) + 1
-        realized_l_axis = (n_axis - 1) * dl
-        if realized_l_axis != l_axis:
-            warn(f"{self.name}: axis length quantized from {l_axis} to "
-                 f"{realized_l_axis} (dl={dl})" + filter_guide)
-        self.l_axis = realized_l_axis
-        me = Stack(radial_layer, 'y', n_axis, dl)
+        self.l_axis = (n_axis - 1) * dl
+        _check_size_change(l_axis, self.l_axis, self.name, 'l_axis')
+        me = Stack(radial_layer, 'y', n_axis, dl, dimension=3)
         self.radius = np.sqrt(me.xs ** 2 + me.zs ** 2)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.check_overlap()
 
 
 class TorusSurface(Geometry):
@@ -484,9 +480,13 @@ class TorusSurface(Geometry):
         xs = (r_t - r_ring * np.cos(all_theta)) * np.sin(all_phi)
         zs = (r_t - r_ring * np.cos(all_theta)) * np.cos(all_phi)
         self.set_coord(*_transform_coordinate(xs, ys, zs, plane=plane))
+        self.phi_tot = phi_tot
+        self.theta = all_theta
         self.n_theta = int(n_ring)
+        self.phi = all_phi
         self.n_phi = None if not regular_id else int(n_per_ring(r_t, dl, phi_tot))
         self.phi_tot_deg = total_deg
+        self.check_overlap()
 
 
 class ThickTorusWall(Geometry):
@@ -515,6 +515,7 @@ class ThickTorusWall(Geometry):
         self.radius = np.hstack(radii)
         me = Union(layers)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, plane=plane))
+        self.check_overlap()
 
 
 class FilledTorus(ThickTorusWall):
@@ -533,9 +534,8 @@ class FilledTorus(ThickTorusWall):
         """
         n_thick = int(r_ring / dl) + 1
         self.r_ring = (n_thick - 1) * dl
-        if abs(self.r_ring - r_ring) > 1e-6:
-            warn(f"{self.name}: ring radius quantized from {r_ring} to {self.r_ring} (dl={dl})" + filter_guide)
-        super().__init__(0, r_t, n_thick, dl, plane=plane, phi_range=phi_range)
+        super().__init__(0, r_t, n_thick, dl, plane=plane, phi_range=phi_range,
+                         name=name or f'FilledTorus {self.get_counter()}')
 
 
 class SphereSurface(Geometry):
@@ -551,7 +551,7 @@ class SphereSurface(Geometry):
             dl (float): Particle spacing
             name (str, optional): Geometry name
         """
-        super().__init__(name=name or f'Sphere {self.get_counter()}', dimension=3)
+        super().__init__(name=name or f'SphereSurface {self.get_counter()}', dimension=3)
         self.r = float(r)
         self.dl = float(dl)
 
@@ -604,6 +604,7 @@ class SphereSurface(Geometry):
 
         # Validate spacing
         self._validate_spacing()
+        self.check_overlap()
 
     @property
     def radius(self):
@@ -611,13 +612,10 @@ class SphereSurface(Geometry):
 
     def _adjust_poles(self):
         """Adjust pole positions to ensure spacing to neighboring points is close to dl."""
-        from scipy.spatial import KDTree
-
         if self.size == 0:
             return
 
         coords = self.matrix_coords
-        tree = KDTree(coords)
 
         # Find potential pole candidates (points with z near ±r)
         north_pole_candidates = np.where(coords[:, 2] > self.r - 1e-6)[0]
@@ -705,6 +703,7 @@ class ThickSphere(Geometry):
         me = Union(layers)
         self.set_coord(me.xs, me.ys, me.zs)
         self.rs = np.sqrt((self.matrix_coords ** 2).sum(axis=1))
+        self.check_overlap()
 
 
 class FilledSphere(ThickSphere):

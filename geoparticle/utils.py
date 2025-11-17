@@ -4,6 +4,7 @@ All angles are in radians internally unless noted.
 """
 from __future__ import annotations
 import numpy as np
+from warnings import warn
 
 # Expose utilities (including internal helpers) for package-internal star-imports.
 # Note: keeping leading-underscore names here allows internal modules to use
@@ -11,7 +12,7 @@ import numpy as np
 # importing utils.* so external `from geometry import *` won't expose these names.
 __all__ = [
     'n_per_ring',
-    '_spacing_ring',
+    'spacing_ring',
     '_ring_xy',
     '_parse_interval_deg',
     '_discretize_arc_by_dl',
@@ -19,6 +20,7 @@ __all__ = [
     '_transform_coordinate',
     '_arange0_quantized',
     'get_wall_ID',
+    '_check_size_change',
 ]
 
 
@@ -44,7 +46,7 @@ def n_per_ring(r, d, phi_ring=2 * np.pi) -> np.ndarray | int:
     return np.round(n).astype(int)
 
 
-def _spacing_ring(r, n, phi_ring=2 * np.pi) -> np.ndarray:
+def spacing_ring(r, n, phi_ring=2 * np.pi) -> np.ndarray:
     """
     Compute the spacing between points on a ring given the number of points.
 
@@ -108,7 +110,7 @@ def _parse_interval_deg(interval: str) -> tuple[float, float, bool, bool, float]
 
 
 def _discretize_arc_by_dl(r: float, dl: float, a_deg: float,
-                         b_deg: float, incl_min: bool, incl_max: bool) -> np.ndarray:
+                          b_deg: float, incl_min: bool, incl_max: bool) -> np.ndarray:
     """
     Generate angular samples for an arc based on spacing.
 
@@ -147,7 +149,7 @@ def _resolve_axis_or_plane(axis: str | None = None, plane: str | None = None) ->
         str: Resolved axis name ('x', 'y', or 'z').
 
     Raises:
-        KeyError: If neither or both axis and plane are specified.
+        KeyError: If neither or both axes and plane are specified.
         ValueError: If the axis or plane name is invalid.
     """
     plane2axis = {'XOY': 'z', 'YOZ': 'x', 'XOZ': 'y'}
@@ -163,7 +165,7 @@ def _resolve_axis_or_plane(axis: str | None = None, plane: str | None = None) ->
 
 
 def _transform_coordinate(xs: np.ndarray, ys: np.ndarray, zs: np.ndarray,
-                         *, axis: str | None = None, plane: str | None = None):
+                          *, axis: str | None = None, plane: str | None = None):
     """
     Transform coordinates to align with the specified axis or plane.
 
@@ -199,19 +201,26 @@ def _arange0_quantized(end: float, dl: float) -> np.ndarray:
     return np.arange(0, end + dl * 0.1, dl).round(6)
 
 
-def get_wall_ID(i, j, n_per_ring, smallest_ID=1):
+def get_wall_ID(i, j, n_ring, smallest_ID=1):
     """
     Compute the ID of a cylinder wall based on its ring and axis indices.
 
     Args:
         i (int): Index on the ring.
         j (int): Index on the axis.
-        n_per_ring (int): Number of points per ring.
+        n_ring (int): Number of points per ring.
         smallest_ID (int): Starting ID value (default is 1).
 
     Returns:
         int: Computed wall ID.
     """
-    if i > n_per_ring:
-        i = i % n_per_ring
-    return (j - 1) * n_per_ring + i + smallest_ID - 1
+    if i > n_ring:
+        i = i % n_ring
+    return (j - 1) * n_ring + i + smallest_ID - 1
+
+
+def _check_size_change(old, new, name_geo, name_prop):
+    filter_guide = " Filter this warning by filterwarnings('ignore',message='.*quantized.*')"
+    if np.isclose(old, new):
+        return
+    warn(f"{name_geo}: {name_prop} quantized from {old} to {new}" + filter_guide)

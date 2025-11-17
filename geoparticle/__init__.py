@@ -37,5 +37,6 @@ __all__ = [
     'FilledSphere',
     # Utilities
     'n_per_ring',
+    'spacing_ring',
     'get_wall_ID'
 ]

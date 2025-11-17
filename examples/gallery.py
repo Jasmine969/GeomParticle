@@ -3,7 +3,7 @@ import geoparticle as gp
 import matplotlib.pyplot as plt
 from warnings import filterwarnings
 
-filterwarnings('ignore',message='.*quantized.*')
+filterwarnings('ignore', message='.*quantized.*')
 
 dl = 0.2
 # 1D gallery ====================
@@ -43,7 +43,7 @@ ax11.set_title('rectangles')
 ax11.axis('equal')
 # circles
 ax12 = fig1.add_subplot(122)
-circle = gp.Circle(1.5, 0, 'XOY', dl, 'circle').shift(x=3,y=-1)
+circle = gp.Circle(1.5, 0, 'XOY', dl, 'circle').shift(x=3, y=-1)
 circle.plot(ax12)
 thick_ring = gp.ThickRing(1.6, 1, dl, incl_inner=True, incl_outer=True, axis='z').shift(y=1)
 thick_ring.plot(ax12)
@@ -84,19 +84,22 @@ filled_torus.plot(ax23, c=filled_torus.radius)
 ax23.set_title('torus')
 # sphere
 ax24 = fig2.add_subplot(224, projection='3d')
-sphere_surface = gp.Clip(gp.SphereSurface(3, dl, 'sphere_surface'), keep='negative',
-                      plane_point=(0,0,0), plane_normal=(0,0,1))
-sphere_shell = gp.Clip(gp.ThickSphere(3, 2, dl), keep='negative',
-                    plane_point=(0,0,0), plane_normal=(0,0,1))
-sphere = gp.Clip(gp.FilledSphere(3, dl, 'sphere'), keep='negative',
-              plane_point=(0, 0, 0), plane_normal=(0, 0, 1))
+sphere_surface = gp.Clip(gp.SphereSurface(4, dl, 'sphere_surface'), keep='negative',
+                         plane_point=(0, 0, 0), plane_normal=(0, 0, 1))
+sphere_shell = gp.Clip(gp.ThickSphere(4, 2, dl), keep='negative',
+                       plane_point=(0, 0, 0), plane_normal=(0, 0, 1))
+sphere = gp.Clip(gp.FilledSphere(4, dl, 'sphere'), keep='negative',
+                 plane_point=(0, 0, 0), plane_normal=(0, 0, 1))
+
+
 def calc_rs(coords):
     return np.sqrt((coords ** 2).sum(axis=1))
 
+
 sphere_surface.plot(ax24)
-sphere_shell.shift(x=8).plot(ax24, c=calc_rs(sphere_shell.matrix_coords))
-sphere.shift(x=16).plot(ax24, c=calc_rs(sphere.matrix_coords))
-ax24.view_init(elev=42, azim=-103, roll=-19)
+sphere_shell.shift(x=16).plot(ax24, c=calc_rs(sphere_shell.matrix_coords))
+sphere.shift(x=8, y=-8).plot(ax24, c=calc_rs(sphere.matrix_coords))
+ax24.view_init(elev=54, azim=-83, roll=5)
 ax24.set_title('Hollow and filled spheres')
 for ax in (ax21, ax22, ax23, ax24):
     ax.set_xlabel('x')
@@ -110,7 +113,7 @@ fig3 = plt.figure(figsize=(10, 10))
 ax31 = fig3.add_subplot(221, projection='3d')
 ax31.plot(tube.xs, tube.ys, tube.zs, 'o', alpha=0.5, ms=2)
 for i in range(3):
-    tube_rot = tube.rotate(90 * (i + 1), 'x', (0,2,-2))
+    tube_rot = tube.rotate(90 * (i + 1), 'x', (0, 2, -2))
     tube_rot.plot(ax31)
 ax31.plot([-5, 5], [2, 2], [-2, -2], '--')
 ax31.view_init(elev=12, azim=-16, roll=3)
@@ -131,11 +134,12 @@ ax32.set_title('mirror')
 # intersect
 ax33 = fig3.add_subplot(223, projection='3d')
 torus_surface = gp.TorusSurface(2, 5, dl, gp.n_per_ring(2, dl), regular_id=False,
-                     plane='XOZ', phi_range='[0,360)').shift(y=-5)
-block =  gp.Block(3, 7, 15, dl).shift(x=-5,y=-8,z=-7)
-intersect = gp.Intersect((torus_surface, block), rmax=dl).shift(x=-5,z=-15)
+                                plane='XOZ', phi_range='[0,360)').shift(y=-5)
+block = gp.Block(3, 7, 15, dl).shift(x=-5, y=-8, z=-7)
+intersect = gp.Intersect((torus_surface, block), rmax=dl).shift(x=-5, z=-15)
 subtract = gp.Subtract(torus_surface, block, rmax=dl).shift(x=5, z=-15)
-union = gp.Union((torus_surface, block)).shift(x=23, z=-15)
+# union = gp.Union((torus_surface, block)).shift(x=23, z=-15)
+union = torus_surface.union(block).shift(x=23, z=-15)
 torus_surface.plot(ax33)
 block.plot(ax33)
 intersect.plot(ax33)

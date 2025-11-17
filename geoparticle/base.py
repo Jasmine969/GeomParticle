@@ -28,7 +28,7 @@ class Geometry(metaclass=CounterMeta):
     and coordinate management.
     """
 
-    def __init__(self, name: str | None = None, dimension : int = None):
+    def __init__(self, name: str | None = None, dimension: int = None):
         """
         Initialize a Geometry object with optional naming.
 
@@ -42,7 +42,6 @@ class Geometry(metaclass=CounterMeta):
         self.zs = np.array([], dtype=float)  # Z-coordinates of the geometry
         self.name = name or f'{self.__class__.__name__} {self.get_counter()}'
         self.dimension = dimension
-
 
     def _copy(self):
         """
@@ -241,9 +240,164 @@ class Geometry(metaclass=CounterMeta):
         pts = np.column_stack((self.xs, self.ys, self.zs))
         rotated = rot.apply(pts - p1) + p1
 
-        g = self._copy()
-        g.set_coord(rotated[:, 0], rotated[:, 1], rotated[:, 2])
-        return g
+        return Geometry(dimension=self.dimension
+                        ).set_coord(rotated[:, 0], rotated[:, 1], rotated[:, 2])
+
+    def union(self, geometries: Geometry | Iterable[Geometry], name: str | None = None):
+        """
+        Concatenate this geometry with others and return a new Geometry.
+
+        Args:
+            geometries (Geometry | Iterable[Geometry]): Other Geometry objects to union with.
+            name (str | None): Optional name for the resulting geometry.
+
+        Returns:
+            Geometry: A new geometry object containing the union of points.
+        """
+        if isinstance(geometries, Geometry):
+            geos = [geometries]
+        else:
+            geos = list(geometries)
+        all_geos = [self] + geos
+        # if no geometries (shouldn't happen since self exists), return empty
+        if not any(g.size for g in all_geos):
+            return Geometry(name=name)
+        dimension = 2
+        for g in all_geos:
+            if g.dimension == 3:
+                dimension = 3
+                break
+        xs = np.hstack([g.xs for g in all_geos if g.size > 0])
+        ys = np.hstack([g.ys for g in all_geos if g.size > 0])
+        zs = np.hstack([g.zs for g in all_geos if g.size > 0])
+        return Geometry(name=name, dimension=dimension).set_coord(xs, ys, zs)
+
+    def subtract(self, geo2: Geometry, rmax: float = 1e-5, name: str | None = None):
+        """
+        Return points from self that are at least rmax away from any point in geo2.
+
+        Args:
+            geo2 (Geometry): Geometry to subtract from self.
+            rmax (float): Minimum distance to consider a point as not overlapping.
+            name (str | None): Optional name for the resulting geometry.
+
+        Returns:
+            Geometry: A new geometry object after subtraction.
+        """
+        if self.size == 0:
+            return Geometry(name=name)
+        if geo2.size == 0:
+            return Geometry(name=name).set_coord(self.xs, self.ys, self.zs)
+        tree = KDTree(geo2.matrix_coords)
+        d, _ = tree.query(self.matrix_coords)
+        mask = d >= rmax
+        return Geometry(name=name, dimension=self.dimension
+                        ).set_coord(self.xs[mask], self.ys[mask], self.zs[mask])
+
+    def intersect(self, geometries: Geometry | Iterable[Geometry], rmax: float = 1e-5, name: str | None = None):
+        """
+        Keep points from self that are within rmax of at least one point in every other geometry.
+
+        Args:
+            geometries (Geometry | Iterable[Geometry]): Other Geometry objects to intersect with.
+            rmax (float): Maximum distance to consider points as intersecting.
+            name (str | None): Optional name for the resulting geometry.
+
+        Returns:
+            Geometry: A new geometry object after intersection.
+        """
+        others = list(geometries)
+        if rmax < 0:
+            raise ValueError('rmax must be non-negative')
+        if any(g.size == 0 for g in [self] + others):
+            return Geometry(name=name)
+        mask = np.ones(self.size, dtype=bool)
+        dimension = 3
+        for g in [self] + others:
+            if g.dimension == 2:
+                dimension = 2
+                break
+        for g in others:
+            tree = KDTree(g.matrix_coords)
+            d, _ = tree.query(self.matrix_coords)
+            mask &= (d <= rmax)
+            if not mask.any():
+                break
+        return Geometry(name=name, dimension=dimension
+                        ).set_coord(self.xs[mask], self.ys[mask], self.zs[mask])
+
+    def stack(self, axis: str, n_axis: int, dl: float, dimension: int, name: str | None = None):
+        """
+        Stack a planar layer (self) along axis by repeating points at spacing dl.
+
+        Args:
+            axis (str): Axis to stack along ('x', 'y', or 'z').
+            n_axis (int): Number of layers to stack. Positive for positive direction,
+                          negative for negative direction.
+            dl (float): Spacing between layers.
+            dimension (int): Dimension of the resulting geometry (2 or 3).
+            name (str | None): Optional name for the resulting geometry.
+
+        Returns:
+            Geometry: A new geometry object after stacking.
+        """
+        if n_axis == 0 or self.size == 0:
+            return Geometry(name=name)
+        coord_layer = self.matrix_coords
+        axis2num = {'x': 0, 'y': 1, 'z': 2}
+        if axis not in axis2num:
+            raise ValueError("axis must be one of 'x','y','z'")
+        a = axis2num[axis]
+        level = coord_layer[0, a]
+        if not np.allclose(coord_layer[:, a], level):
+            raise ValueError('Layer must be planar orthogonal to the stacking axis')
+        k = np.arange(0, n_axis, np.sign(n_axis), dtype=int)
+        shifts = np.zeros((k.size, 3), dtype=float)
+        shifts[:, a] = k * dl
+        coords = (coord_layer[None, :, :] + shifts[:, None, :]).reshape(-1, 3)
+        coords[:, a] += 0.0
+        return Geometry(name=name, dimension=dimension
+                        ).set_coord(coords[:, 0], coords[:, 1], coords[:, 2])
+
+    def clip(
+        self, keep: str, *,
+        plane_name: str | None = None,
+        plane_normal: list[float] | tuple[float, float, float] | np.ndarray | None = None,
+        plane_point: list[float] | tuple[float, float, float] | np.ndarray | None = None,
+        name: str | None = None,
+    ):
+        """Clip geometry by a half-space defined by a named plane or an arbitrary plane."""
+        if self.size == 0:
+            return Geometry(name=name)
+        if keep not in ('positive', 'negative'):
+            raise ValueError("keep must be 'positive' or 'negative'")
+        if plane_name is not None:
+            if plane_normal is not None or plane_point is not None:
+                raise ValueError('Do not mix plane_name with plane_normal/plane_point')
+            normals = {
+                'XOY': np.array([0.0, 0.0, 1.0], dtype=float),
+                'XOZ': np.array([0.0, 1.0, 0.0], dtype=float),
+                'YOZ': np.array([1.0, 0.0, 0.0], dtype=float),
+            }
+            if plane_name not in normals:
+                raise ValueError("plane_name must be one of {'XOY','XOZ','YOZ'}")
+            n = normals[plane_name]
+            p0 = np.zeros(3, dtype=float)
+        else:
+            if plane_normal is None or plane_point is None:
+                raise ValueError('plane_normal and plane_point must be provided together when plane_name is not used')
+            p0 = np.asarray(plane_point, dtype=float).reshape(3)
+            n = np.asarray(plane_normal, dtype=float).reshape(3)
+            norm = np.linalg.norm(n)
+            if not np.isfinite(norm) or norm < 1e-12:
+                raise ValueError('plane_normal must be a non-zero finite 3D vector')
+        s = (self.matrix_coords - p0) @ n
+        if keep == 'positive':
+            mask = s >= 0.0
+        else:
+            mask = s <= 0.0
+        return Geometry(name=name, dimension=self.dimension
+                        ).set_coord(self.xs[mask], self.ys[mask], self.zs[mask])
 
     def get_and_delete(self, ids: np.ndarray):
         """
@@ -261,7 +415,7 @@ class Geometry(metaclass=CounterMeta):
         x_del, self.xs = self.xs[ids], self.xs[~mask]
         y_del, self.ys = self.ys[ids], self.ys[~mask]
         z_del, self.zs = self.zs[ids], self.zs[~mask]
-        return Geometry().set_coord(x_del, y_del, z_del)
+        return Geometry(dimension=self.dimension).set_coord(x_del, y_del, z_del)
 
     def coord2id(self, x: float, y: float, z: float):
         """
@@ -279,6 +433,19 @@ class Geometry(metaclass=CounterMeta):
         r_min, idx = tree.query([x, y, z])
         indices_all = tree.query_ball_point([x, y, z], r=r_min + 1e-10)
         return indices_all, self.matrix_coords[indices_all]
+
+    def equal(self, geo: Geometry):
+        """
+        Check if two geometries are equal based on their coordinates.
+
+        Args:
+            geo (Geometry): Another geometry to compare with.
+
+        Returns:
+            bool: True if the geometries are equal, False otherwise.
+        """
+        return np.array_equal(self.matrix_coords, geo.matrix_coords)
+
 
     def check_overlap(self, tol: float = 1e-10):
         """
@@ -302,7 +469,6 @@ class Geometry(metaclass=CounterMeta):
                  f'{point1[0].item(), point1[1].item(), point1[2].item()}'
                  f' and #{min_pair_idx} {point2[0].item(), point2[1].item(), point2[2].item()} '
                  f'with a distance of {min_distance: .3g} < tol={tol:.3g}')
-
 
     def plot(self, ax=None, ms=None, alpha=None, **scatter_kwargs):
         """
