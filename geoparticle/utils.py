@@ -111,6 +111,8 @@ def _parse_interval_deg(interval: str) -> tuple[float, float, bool, bool, float]
     total = b - a
     if total > 360 + 1e-9:
         raise ValueError('Angular span cannot exceed 360 degrees')
+    if total == 360 and incl_min and incl_max:
+        raise ValueError('Cannot have full circle with both bounds inclusive. [0,360) is recommended')
     return a, b, incl_min, incl_max, total
 
 

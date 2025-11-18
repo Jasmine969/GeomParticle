@@ -498,7 +498,9 @@ class TorusSurface(Geometry):
             dl (float): Spacing between points in the grid.
             n_ring (int): Number of points along the tube's cross-section.
             plane (str, optional): Plane in which the torus lies. Defaults to 'XOZ'.
-            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'.
+            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
+                notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
+                e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             regular_id (bool, optional): Whether to use regular indexing for points. Defaults to False.
             name (str, optional): Name of the torus. Defaults to None.
         """
@@ -564,7 +566,9 @@ class ThickTorusWall(Geometry):
             r_major (float): Radius of the torus centerline.
             dl (float): Spacing between points in the grid.
             plane (str, optional): Plane in which the torus lies. Defaults to 'XOZ'.
-            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'.
+            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
+                notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
+                e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             name (str, optional): Name of the thick torus wall. Defaults to None.
         """
         super().__init__(name=name or f'ThickTorusWall {self.get_counter()}', dimension=3)
@@ -597,7 +601,9 @@ class FilledTorus(ThickTorusWall):
             r_major (float): Radius of the torus centerline.
             dl (float): Spacing between points in the grid.
             plane (str, optional): Plane in which the torus lies. Defaults to 'XOZ'.
-            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'.
+            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
+                notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
+                e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             name (str, optional): Name of the filled torus. Defaults to None.
         """
         n_thick = int(r_minor / dl) + 1
