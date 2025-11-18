@@ -5,8 +5,6 @@ from typing import Iterable, Tuple, List
 from scipy.spatial import KDTree
 from warnings import warn
 
-from brian2 import NeuronGroup
-
 
 class CounterMeta(type):
     """Metaclass that adds a class-wide counter for default naming of instances."""
