@@ -4,7 +4,7 @@ from .shapes import *
 from .utils import n_per_ring
 
 __version__ = '1.0.2'
-__author__ = 'Jasmine969'
+__author__ = 'Hong Zhu'
 __all__ = [
     'Geometry',
     # Operations
