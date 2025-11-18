@@ -70,7 +70,9 @@ class Arc(Geometry):
         """
         Args:
             r (float): Radius of the arc.
-            phi_range (str): Angular range of the arc in degrees (e.g., '[0,90)').
+            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
+                notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
+                e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             plane (str): Plane in which the arc lies ('XOY', 'YOZ', or 'XOZ').
             dl (float): Spacing between points along the arc.
             name (str, optional): Name of the arc. Defaults to None.
@@ -97,11 +99,13 @@ class ConcentricArc(Geometry):
     def __init__(self, r_out: float, r_in: float, dl: float, plane='XOZ', phi_range='[0,360)', name=None):
         """
         Args:
-            r_out (float): Outer radius of the torus.
-            r_in (float): Inner radius of the torus.
+            r_out (float): Outer radius.
+            r_in (float): Inner radius.
             dl (float): Spacing between points along the arcs.
             plane (str, optional): Plane in which the torus lies. Defaults to 'XOZ'.
-            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[0,360)'.
+            phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
+                notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
+                e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             name (str, optional): Name of the torus. Defaults to None.
         """
         super().__init__(name=name or f'Torus2D {self.get_counter()}', dimension=2)
