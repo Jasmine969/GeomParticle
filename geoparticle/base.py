@@ -199,15 +199,17 @@ class Geometry(metaclass=CounterMeta):
         Returns:
             Geometry | None: New geometry if not inplace, otherwise None.
         """
-        if inplace and name is not None:
-            raise ValueError('Cannot specify name when inplace is True')
+        if inplace:
+            if name is not None:
+                raise ValueError('Cannot specify name when inplace is True')
+            self.xs += x
+            self.ys += y
+            self.zs += z
+            return None
         g = self.copy()
         g.xs += x
         g.ys += y
         g.zs += z
-        if inplace:
-            self.load_from(g)
-            return None
         if name is not None:
             g.name = name
         return g
@@ -307,14 +309,14 @@ class Geometry(metaclass=CounterMeta):
             g.name = name
         return g
 
-    def union(self, geometries: Geometry | List[Geometry] | Tuple[Geometry],
+    def union(self, geometries: Geometry | List[Geometry, ...] | Tuple[Geometry, ...],
               inplace: bool = False,
               name: str | None = None):
         """
         Concatenate this geometry with others and return a new Geometry.
 
         Args:
-            geometries (Geometry | List[Geometry] | Tuple[Geometry]): Other Geometry objects to union with.
+            geometries (Geometry | List[Geometry, ...] | Tuple[Geometry, ...]): Other Geometry objects to union with.
             inplace (bool): If True, modify the geometry in place. Otherwise, return a new geometry.
             name (str | None): Optional name for the resulting geometry.
                 Cannot be given when inplace is True. If not given, the original name is used.
@@ -424,14 +426,14 @@ class Geometry(metaclass=CounterMeta):
             return self
         return NotImplemented
 
-    def intersect(self, geometries: Geometry | List[Geometry] | Tuple[Geometry],
+    def intersect(self, geometries: Geometry | List[Geometry, ...] | Tuple[Geometry, ...],
                   rmax: float = 1e-5, inplace: bool = False,
                   name: str | None = None):
         """
         Keep points from self that are within rmax of at least one point in every other geometry.
 
         Args:
-            geometries (Geometry | List[Geometry] | Tuple[Geometry]): Other Geometry objects to intersect with.
+            geometries (Geometry | List[Geometry, ...] | Tuple[Geometry, ...]): Other Geometry objects to intersect with.
             rmax (float): Maximum distance to consider points as intersecting.
             inplace (bool): If True, modify the geometry in place. Otherwise, return a new geometry.
             name (str | None): Optional name for the resulting geometry.

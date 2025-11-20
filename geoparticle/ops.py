@@ -95,12 +95,12 @@ class Union(Geometry):
     Shortest import: `from geoparticle import Union`
     """
 
-    def __init__(self, geometries: List[Geometry] | Tuple[Geometry], name=None):
+    def __init__(self, geometries: List[Geometry, ...] | Tuple[Geometry, ...], name=None):
         """
         Initialize a Union object that concatenates multiple geometries.
         Users had better ensure no overlapping (too close) points among the geometries.
         Args:
-            geometries (list[Geometry] | tuple[Geometry]): List of Geometry objects to concatenate.
+            geometries (list[Geometry, ...] | tuple[Geometry, ...]): List of Geometry objects to concatenate.
             name (str, optional): Name of the resulting geometry. Defaults to None.
         """
         super().__init__(name=name or f'Union {self.get_counter()}')
@@ -148,13 +148,13 @@ class Intersect(Geometry):
     Shortest import: `from geoparticle import Intersect`
     """
 
-    def __init__(self, geometries: Tuple[Geometry] | List[Geometry],
+    def __init__(self, geometries: Tuple[Geometry, ...] | List[Geometry, ...],
                  rmax: float = 1e-5, name=None):
         """
         Initialize an Intersect object that computes the intersection of multiple geometries.
 
         Args:
-            geometries (Tuple[Geometry] | List[Geometry]): Geometries to intersect.
+            geometries (Tuple[Geometry, ...] | List[Geometry, ...]): Geometries to intersect.
             rmax (float, optional): Maximum distance for intersection. Defaults to 1e-5.
             name (str, optional): Name of the resulting geometry. Defaults to None.
         """

@@ -10,17 +10,21 @@ from .ops import *
 class Line(Geometry):
     """
     1D line aligned to a principal axis, then reoriented.
-    Default origin is the line end with a smaller coordinate along the principal axis.
 
     Shortest import: `from geoparticle import Line`
     """
 
-    def __init__(self, length: float, direction: str, dl: float, name=None):
+    def __init__(self, length: float, direction: str, dl: float,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0),
+                 name=None):
         """
         Args:
             length (float): Length of the line.
             direction (str): Principal axis direction ('x', 'y', or 'z').
             dl (float): Spacing between points along the line.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the line. The anchor is the line end with
+                a smaller coordinate along the principal axis. Defaults to (0,0,0).
             name (str, optional): Name of the line. Defaults to None.
         """
         super().__init__(name=name or f'Line {self.get_counter()}', dimension=2)
@@ -30,19 +34,22 @@ class Line(Geometry):
         xs = np.zeros_like(ys)
         zs = np.zeros_like(ys)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=direction))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class SymmLines(Geometry):
     """
     Two symmetrical lines centered at origin and aligned along `direction`.
-    Default origin is one of the symmetrical line ends with a smaller coordinate along the principal axis.
 
     Shortest import: `from geoparticle import SymmLines`
     """
 
     def __init__(self, length: float, direction: str, symm_plane: str,
-                 dist_half: float, dl: float, name=None):
+                 dist_half: float,
+                 dl: float,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0),
+                 name=None):
         """
         Args:
             length (float): Length of each symmetrical line.
@@ -50,6 +57,9 @@ class SymmLines(Geometry):
             symm_plane (str): Symmetrical plane ('XOY', 'YOZ', or 'XOZ').
             dist_half (float): Half the distance between the two lines.
             dl (float): Spacing between points along the lines.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the symmetrical lines. The anchor is one of the
+                symmetrical line ends with a smaller coordinate along the principal axis. Defaults to (0,0,0).
             name (str, optional): Name of the symmetrical lines. Defaults to None.
         """
         super().__init__(name=name or f'SymmLines {self.get_counter()}', dimension=2)
@@ -58,18 +68,19 @@ class SymmLines(Geometry):
         eval(f'upper.shift({normal}=dist_half, inplace=True)')
         lower = upper.mirror(symm_plane, 0)
         self.load_from(Union((upper, lower)))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class Arc(Geometry):
     """
     2D circular arc on a plane.
-    Default origin is at the center of the arc.
 
     Shortest import: `from geoparticle import Arc`
     """
 
-    def __init__(self, r: float, phi_range: str, plane: str, dl: float, name=None):
+    def __init__(self, r: float, phi_range: str, plane: str, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r (float): Radius of the arc.
@@ -77,6 +88,8 @@ class Arc(Geometry):
                 notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
                 e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full circle.
             plane (str): Plane in which the arc lies ('XOY', 'YOZ', or 'XOZ').
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the arc. The anchor is the arc center.
             dl (float): Spacing between points along the arc.
             name (str, optional): Name of the arc. Defaults to None.
         """
@@ -88,18 +101,20 @@ class Arc(Geometry):
         xs = r * np.sin(phis)
         ys = np.zeros_like(xs)
         self.set_coord(*_transform_coordinate(xs, ys, zs, plane=plane))
+        # apply anchor translation if provided
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class ConcentricArc(Geometry):
     """
     Two concentric arcs.
-    Default origin is at the center of the arcs.
 
     Shortest import: `from geoparticle import ConcentricArc`
     """
 
-    def __init__(self, r_out: float, r_in: float, dl: float, plane='XOZ', phi_range='[0,360)', name=None):
+    def __init__(self, r_out: float, r_in: float, dl: float, plane='XOZ', phi_range='[0,360)', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_out (float): Outer radius.
@@ -109,6 +124,8 @@ class ConcentricArc(Geometry):
             phi_range (str, optional): Angular range of the torus in degrees. Defaults to '[180,270)'. Interval
                 notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
                 e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full circle.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the arc. The anchor is the arc center.
             name (str, optional): Name of the torus. Defaults to None.
         """
         super().__init__(name=name or f'Torus2D {self.get_counter()}', dimension=2)
@@ -116,18 +133,19 @@ class ConcentricArc(Geometry):
         inner = Arc(r_in, phi_range, 'XOZ', dl)
         me = Union((inner, outer))
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, plane=plane))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class Circle(Arc):
     """
     Full circle as an arc over [0,360).
-    Default origin is at the center of the circle.
 
     Shortest import: `from geoparticle import Circle`
     """
 
-    def __init__(self, r: float, plane: str, dl: float, name=None):
+    def __init__(self, r: float, plane: str, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a Circle object.
 
@@ -136,20 +154,23 @@ class Circle(Arc):
             plane (str): Plane in which the circle lies ('XOY', 'YOZ', or 'XOZ').
             dl (float): Spacing between points along the circle.
             name (str, optional): Name of the circle. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the arc. The anchor is the circle center.
         """
         super().__init__(r, '[0,360)', plane, dl,
-                         name=name or f'Circle {self.get_counter()}')
+                         name=name or f'Circle {self.get_counter()}',
+                         anchor=anchor)
 
 
 class Rectangle(Geometry):
     """
     2D rectangle boundary (inner dimensions).
-    Default origin is at the vertex with the smallest (x,y,z) coordinates.
 
     Shortest import: `from geoparticle import Rectangle`
     """
 
-    def __init__(self, length: float, width: float, axis: str, dl: float, name=None):
+    def __init__(self, length: float, width: float, axis: str, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a Rectangle object.
 
@@ -159,6 +180,9 @@ class Rectangle(Geometry):
             axis (str): Axis orthogonal to the rectangle ('x', 'y', or 'z').
             dl (float): Spacing between points along the rectangle boundary.
             name (str, optional): Name of the rectangle. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the rectangle. The anchor is the vertex
+                with the smallest (x,y,z) coordinates.
         """
         super().__init__(name=name or f'Rectangle {self.get_counter()}', dimension=2)
         z_bot = _arange0_quantized(length, dl)
@@ -178,19 +202,20 @@ class Rectangle(Geometry):
         xs = np.r_[x_bot, x_left, x_top, x_right]
         ys = np.zeros_like(xs)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class ThickRectangle(Geometry):
     """
     Rectangle wall with thickness inwards/outwards by dl-layers. Inner dims are (length,width).
-    Default origin is at the vertex with the smallest (x,y,z) coordinates of the innermost layer.
 
     Shortest import: `from geoparticle import ThickRectangle`
     """
 
     def __init__(self, length: float, width: float, n_thick: int,
-                axis: str, dl: float, name=None):
+                 axis: str, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a ThickRectangle object.
 
@@ -201,6 +226,9 @@ class ThickRectangle(Geometry):
             axis (str): Axis orthogonal to the rectangle ('x', 'y', or 'z').
             dl (float): Spacing between points along the rectangle boundary.
             name (str, optional): Name of the thick rectangle. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the thick rectangle. The anchor is the vertex
+                with the smallest (x,y,z) coordinates of the innermost layer.
         """
         super().__init__(name=name or f'ThickRectangle {self.get_counter()}', dimension=2)
         layers = []
@@ -211,18 +239,19 @@ class ThickRectangle(Geometry):
             layers.append(layer)
         me = Union(layers)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class FilledRectangle(Geometry):
     """
     2D filled rectangle.
-    Default origin is at the vertex with the smallest (x,y,z) coordinates.
 
     Shortest import: `from geoparticle import FilledRectangle`
     """
 
-    def __init__(self, length: float, width: float, axis: str, dl: float, name=None):
+    def __init__(self, length: float, width: float, axis: str, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a FilledRectangle object.
 
@@ -232,6 +261,9 @@ class FilledRectangle(Geometry):
             axis (str): Axis orthogonal to the rectangle ('x', 'y', or 'z').
             dl (float): Spacing between points within the rectangle.
             name (str, optional): Name of the filled rectangle. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the rectangle. The anchor is the vertex
+                with the smallest (x,y,z) coordinates.
         """
         super().__init__(name=name or f'FilledRectangle {self.get_counter()}', dimension=2)
         z = _arange0_quantized(length, dl)
@@ -243,13 +275,13 @@ class FilledRectangle(Geometry):
         zs, xs = Z.ravel(), X.ravel()
         ys = np.zeros_like(xs)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class ThickRing(Geometry):
     """
     2D ring region between inner and outer circles. Inner/outer rings can be included or excluded.
-    Default origin is at the center of the ring.
 
     Shortest import: `from geoparticle import ThickRing`
     """
@@ -257,7 +289,8 @@ class ThickRing(Geometry):
     def __init__(self, r_out: float, r_in: float, dl: float,
                  incl_inner: bool = True, incl_outer: bool = True,
                  axis: str = 'y', adjust_dl: bool = False,
-                 equal_size_per_circle: bool = False, name=None):
+                 equal_size_per_circle: bool = False, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_out (float): Outer radius of the ring.
@@ -269,6 +302,8 @@ class ThickRing(Geometry):
             adjust_dl (bool, optional): Whether to adjust spacing for the inner circle. Defaults to False.
             equal_size_per_circle (bool, optional): Whether to use equal point count per circle. Defaults to False.
             name (str, optional): Name of the thick ring. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the ring. The anchor is the ring center.
         """
         super().__init__(name=name or f'ThickRing {self.get_counter()}', dimension=2)
         if r_out < r_in:
@@ -302,18 +337,19 @@ class ThickRing(Geometry):
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
         self.rs = rs
         self.n_per_rings = n_per_rings
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class FilledCircle(ThickRing):
     """
     2D filled circle (ring with r_in=0 and inner/outer included).
-    Default origin is at the center of the circle.
 
     Shortest import: `from geoparticle import FilledCircle`
     """
 
-    def __init__(self, r: float, dl: float, axis: str = 'y', name=None):
+    def __init__(self, r: float, dl: float, axis: str = 'y', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a FilledCircle object.
 
@@ -322,21 +358,24 @@ class FilledCircle(ThickRing):
             dl (float): Spacing between points within the circle.
             axis (str, optional): Axis orthogonal to the circle. Defaults to 'y'.
             name (str, optional): Name of the filled circle. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the circle. The anchor is the circle center.
         """
         super().__init__(r_out=r, r_in=0.0, dl=dl, incl_inner=True, incl_outer=True,
                          axis=axis, adjust_dl=False, equal_size_per_circle=False,
-                         name=name or f'FilledCircle {self.get_counter()}')
+                         name=name or f'FilledCircle {self.get_counter()}',
+                         anchor=anchor)
 
 
 class Block(Geometry):
     """
     3D block by stacking a filled rectangle along the z-axis.
-    Default origin is at the vertex with the smallest (x,y,z) coordinates.
 
     Shortest import: `from geoparticle import Block`
     """
 
-    def __init__(self, length: float, width: float, height: float, dl: float, name=None):
+    def __init__(self, length: float, width: float, height: float, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Initialize a Block object.
 
@@ -346,6 +385,9 @@ class Block(Geometry):
             height (float): Height of the block along the z-axis.
             dl (float): Spacing between points in the grid.
             name (str, optional): Name of the block. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the block. The anchor is the vertex
+                with the smallest (x,y,z) coordinates.
         """
         super().__init__(name=name or f'Block {self.get_counter()}', dimension=3)
         layer = FilledRectangle(length, width, 'z', dl)
@@ -353,18 +395,19 @@ class Block(Geometry):
         self.height = (n_height - 1) * dl
         _check_size_change(height, self.height, self.name, 'height')
         self.load_from(Stack(layer, 'z', n_height, dl, dimension=3))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class ThickBlockWall(Geometry):
     """
     3D thick walls of a rectangular box, including side walls and top/bottom lids.
-    Default origin is at the vertex with the smallest (x,y,z) coordinates of the innermost layer.
 
     Shortest import: `from geoparticle import ThickBlockWall`
     """
 
-    def __init__(self, length: float, width: float, height: float, n_thick: int, dl: float, name=None):
+    def __init__(self, length: float, width: float, height: float, n_thick: int, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             length (float): Inner length of the box.
@@ -373,6 +416,9 @@ class ThickBlockWall(Geometry):
             n_thick (int): Number of thickness layers for the walls.
             dl (float): Spacing between points in the grid.
             name (str, optional): Name of the thick block wall. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the thick block wall. The anchor is the vertex
+                with the smallest (x,y,z) coordinates of the innermost layer.
         """
         super().__init__(name=name or f'ThickBlockWall {self.get_counter()}', dimension=3)
         side_layer = ThickRectangle(length, width, n_thick, 'z', dl)
@@ -383,18 +429,19 @@ class ThickBlockWall(Geometry):
         z_mid = (n_height - 1) * dl / 2
         lid_upper = lid_lower.mirror('XOY', z_mid)
         self.load_from(Union((side, lid_lower, lid_upper)))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class CylinderSide(Geometry):
     """
     Side surface of a cylinder.
-    Default origin is at the bottom/left/back center of the cylinder.
 
     Shortest import: `from geoparticle import CylinderSide`
     """
 
-    def __init__(self, r: float, l_axis: float, dl: float, axis: str = 'y', name=None):
+    def __init__(self, r: float, l_axis: float, dl: float, axis: str = 'y', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r (float): Radius of the cylinder.
@@ -402,6 +449,9 @@ class CylinderSide(Geometry):
             dl (float): Spacing between points in the grid.
             axis (str, optional): Axis along which the cylinder is oriented. Defaults to 'y'.
             name (str, optional): Name of the cylinder side. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the cylinder side. The anchor is the
+                bottom/left/back center of the cylinder.
         """
         super().__init__(name=name or f'CylinderSide {self.get_counter()}', dimension=3)
         self.l_axis = float(l_axis)
@@ -417,6 +467,7 @@ class CylinderSide(Geometry):
         xs = np.tile(x_ring, self.n_axis)
         ys = np.repeat(y, self.n_ring)
         self.set_coord(*_transform_coordinate(xs, ys, zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
     @property
@@ -433,13 +484,13 @@ class CylinderSide(Geometry):
 class ThickCylinderSide(Geometry):
     """
     Thick wall of a cylinder.
-    Default origin is at the bottom/left/back center of the cylinder.
 
     Shortest import: `from geoparticle import ThickCylinderSide`
     """
 
     def __init__(self, r_out, r_in, l_axis: float, dl: float,
-                 axis: str = 'y', name=None):
+                 axis: str = 'y', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_out (float): Outer radius of the cylinder.
@@ -448,6 +499,9 @@ class ThickCylinderSide(Geometry):
             dl (float): Spacing between points in the grid.
             axis (str, optional): Axis along which the cylinder is oriented. Defaults to 'y'.
             name (str, optional): Name of the thick cylinder wall. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the cylinder side. The anchor is the
+                bottom/left/back center of the cylinder.
         """
         super().__init__(name=name or f'ThickCylinderWall {self.get_counter()}', dimension=3)
         n_axis = int(l_axis / dl) + 1
@@ -457,18 +511,19 @@ class ThickCylinderSide(Geometry):
         me = Stack(layer, 'y', n_axis, dl, dimension=3)
         self.radius = np.sqrt(me.xs ** 2 + me.zs ** 2)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class FilledCylinder(Geometry):
     """
     Filled cylinder volume.
-    Default origin is at the bottom/left/back center of the cylinder.
 
     Shortest import: `from geoparticle import FilledCylinder`
     """
 
-    def __init__(self, r: float, l_axis: float, dl: float, axis: str = 'y', name=None):
+    def __init__(self, r: float, l_axis: float, dl: float, axis: str = 'y', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r (float): Radius of the cylinder.
@@ -476,6 +531,9 @@ class FilledCylinder(Geometry):
             dl (float): Spacing between points in the grid.
             axis (str, optional): Axis along which the cylinder is oriented. Defaults to 'y'.
             name (str, optional): Name of the filled cylinder. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the cylinder side. The anchor is the
+                bottom/left/back center of the cylinder.
         """
         super().__init__(name=name or f'FilledCylinder {self.get_counter()}', dimension=3)
         radial_layer = FilledCircle(r, dl, 'y')
@@ -485,19 +543,20 @@ class FilledCylinder(Geometry):
         me = Stack(radial_layer, 'y', n_axis, dl, dimension=3)
         self.radius = np.sqrt(me.xs ** 2 + me.zs ** 2)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, axis=axis))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class TorusSurface(Geometry):
     """
     3D torus surface (tube radius r_minor around circle radius r_major).
-    Default origin is at the center of the large circle.
 
     Shortest import: `from geoparticle import TorusSurface`
     """
 
     def __init__(self, r_minor: float, r_major: float, dl: float, n_ring: int = None,
-                 plane='XOZ', phi_range='[180,270)', regular_id=False, name=None):
+                 plane='XOZ', phi_range='[180,270)', regular_id=False, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_minor (float): Radius of the torus tube.
@@ -510,6 +569,8 @@ class TorusSurface(Geometry):
                 e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             regular_id (bool, optional): Whether to use regular indexing for points. Defaults to False.
             name (str, optional): Name of the torus. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the center of the major circle.
         """
         super().__init__(name=name or f'TorusSurface {self.get_counter()}', dimension=3)
         if not (r_minor < r_major):
@@ -553,19 +614,20 @@ class TorusSurface(Geometry):
         self.phi = all_phi
         self.n_phi = None if not regular_id else int(n_per_ring(r_major, dl, phi_tot))
         self.phi_tot_deg = total_deg
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class ThickTorusWall(Geometry):
     """
     3D thick wall of a torus.
-    Default origin is at the center of the large circle.
 
     Shortest import: `from geoparticle import ThickTorusWall`
     """
 
     def __init__(self, r_in: float, r_major: float, n_thick: int, dl: float,
-                 plane='XOZ', phi_range='[180,270)', name=None):
+                 plane='XOZ', phi_range='[180,270)', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_in (float): Inner radius of the torus tube.
@@ -577,6 +639,8 @@ class ThickTorusWall(Geometry):
                 notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
                 e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             name (str, optional): Name of the thick torus wall. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the center of the major circle.
         """
         super().__init__(name=name or f'ThickTorusWall {self.get_counter()}', dimension=3)
         layers = []
@@ -589,19 +653,20 @@ class ThickTorusWall(Geometry):
         self.radius = np.hstack(radii)
         me = Union(layers)
         self.set_coord(*_transform_coordinate(me.xs, me.ys, me.zs, plane=plane))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class FilledTorus(ThickTorusWall):
     """
     3D filled torus volume.
-    Default origin is at the center of the large circle.
 
     Shortest import: `from geoparticle import FilledTorus`
     """
 
     def __init__(self, r_minor: float, r_major: float, dl: float,
-                 plane='XOZ', phi_range='[180,270)', name=None):
+                 plane='XOZ', phi_range='[180,270)', name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_minor (float): Outer radius of the torus tube.
@@ -612,27 +677,32 @@ class FilledTorus(ThickTorusWall):
                 notation should be used, where `[` and `]` denote inclusion, whereas `(` and `)` denote exclusion,
                 e.g., `[180,270)`, `(0, 90)`, etc. Use `[0,360)` for a full torus.
             name (str, optional): Name of the filled torus. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the center of the major circle.
         """
         n_thick = int(r_minor / dl) + 1
         self.r_minor = (n_thick - 1) * dl
         super().__init__(0, r_major, n_thick, dl, plane=plane, phi_range=phi_range,
-                         name=name or f'FilledTorus {self.get_counter()}')
+                         name=name or f'FilledTorus {self.get_counter()}',
+                         anchor=anchor)
 
 
 class SphereSurface(Geometry):
     """
     3D sphere surface.
-    Default origin is at the sphere center.
 
     Shortest import: `from geoparticle import SphereSurface`
     """
 
-    def __init__(self, r: float, dl: float, name=None):
+    def __init__(self, r: float, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r (float): Sphere radius
             dl (float): Particle spacing
             name (str, optional): Geometry name
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the sphere center.
         """
         super().__init__(name=name or f'SphereSurface {self.get_counter()}', dimension=3)
         self.r = float(r)
@@ -687,6 +757,7 @@ class SphereSurface(Geometry):
 
         # Validate spacing
         self._validate_spacing()
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
     @property
@@ -768,18 +839,20 @@ class SphereSurface(Geometry):
 class ThickSphere(Geometry):
     """
     Thick spherical shell between inner and outer spheres.
-    Default origin is at the sphere center.
 
     Shortest import: `from geoparticle import ThickSphere`
     """
 
-    def __init__(self, r_out: float, r_in: float, dl: float, name=None):
+    def __init__(self, r_out: float, r_in: float, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r_out (float): Outer radius of the spherical shell.
             r_in (float): Inner radius of the spherical shell.
             dl (float): Spacing between points in the grid.
             name (str, optional): Name of the thick sphere. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the sphere center.
         """
         super().__init__(name=name or f'ThickSphere {self.get_counter()}', dimension=3)
         if r_out < r_in:
@@ -790,25 +863,29 @@ class ThickSphere(Geometry):
             layers.append(layer)
         self.load_from(Union(layers))
         self.rs = np.sqrt((self.matrix_coords ** 2).sum(axis=1))
+        self.shift(x=anchor[0], y=anchor[1], z=anchor[2], inplace=True)
         self.check_overlap()
 
 
 class FilledSphere(ThickSphere):
     """
     Filled sphere volume.
-    Default origin is at the sphere center.
 
     Shortest import: `from geoparticle import FilledSphere`
     """
 
-    def __init__(self, r: float, dl: float, name=None):
+    def __init__(self, r: float, dl: float, name=None,
+                 anchor: Tuple[float, float, float] | List[float, float, float] = (0, 0, 0)):
         """
         Args:
             r (float): Radius of the filled sphere.
             dl (float): Spacing between points in the grid.
             name (str, optional): Name of the filled sphere. Defaults to None.
+            anchor (Tuple[float, float, float] | List[float, float, float]): The anchor coordinate
+                to determine the absolute position of the torus. The anchor is the sphere center.
         """
         super().__init__(
             r_out=r, r_in=0, dl=dl,
-            name=name or f'FilledSphere {self.get_counter()}'
+            name=name or f'FilledSphere {self.get_counter()}',
+            anchor=anchor
         )
