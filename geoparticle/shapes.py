@@ -130,6 +130,8 @@ class ConcentricArc(Geometry):
             name (str, optional): Name of the torus. Defaults to None.
         """
         super().__init__(name=name or f'ConcentricArc {self.get_counter()}', dimension=2)
+        if r_in >= r_out:
+            raise ValueError('r_in must be smaller than r_out')
         outer = Arc(r_out, phi_range, 'XOZ', dl)
         inner = Arc(r_in, phi_range, 'XOZ', dl)
         me = Union((inner, outer))
@@ -186,6 +188,8 @@ class ThickArc(Geometry):
                 to determine the absolute position of the arc. The anchor is the arc center.
         """
         super().__init__(name=name or f'ThickArc {self.get_counter()}', dimension=2)
+        if r_in >= r_out:
+            raise ValueError('r_in must be smaller than r_out')
         n_layers = int((r_out - r_in) / dl) + 1
         self.r_in = r_in
         self.r_out = r_in + (n_layers - 1) * dl
